@@ -1,45 +1,47 @@
-name: Build ONLYOFFICE Core (with cache)
+name: Build ONLYOFFICE Core (Linux AMD64)
 
 on:
-  push:
-  pull_request:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-20.04
+
     steps:
-      - name: Checkout source
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 缓存 apt 包目录
-      - name: Cache APT packages
-        uses: actions/cache@v3
-        with:
-          path: |
-            /var/cache/apt/archives
-          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/build-core.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-apt-
-
-      - name: Install build dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential cmake ninja-build python3 \
-            libxml2-dev libxslt1-dev zlib1g-dev \
-            libjpeg-dev libpng-dev libtiff-dev \
-            libfreetype6-dev libglib2.0-dev \
-            libcurl4-openssl-dev uuid-dev \
-            libhunspell-dev libharfbuzz-dev
+            build-essential cmake git pkg-config \
+            libxml2-dev zlib1g-dev libpng-dev libjpeg-dev \
+            libcurl4-openssl-dev libssl-dev \
+            libglib2.0-dev libcairo2-dev \
+            libpango1.0-dev libicu-dev \
+            libboost-all-dev
 
-      - name: Build x2t
+      - name: Cache CMake and deps
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.ccache
+            build
+          key: ${{ runner.os }}-onlyoffice-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-onlyoffice-
+
+      - name: Build x2t (Linux AMD64, WenquOffice)
         run: |
-          ./make.py
+          ./make.py --cmake-args="-DAPPLICATION_NAME_DEFAULT='\"WenquOffice\"'"
           ls -lh out/linux_64/*/*/x2t || true
 
-      - name: Upload artifact
+      - name: Upload x2t binary
         uses: actions/upload-artifact@v3
         with:
-          name: x2t-binary
-          path: out/linux_64/release/x2t
+          name: x2t-linux-amd64
+          path: out/linux_64/*/*/x2t
