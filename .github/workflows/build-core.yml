@@ -1,0 +1,45 @@
+name: Build ONLYOFFICE Core (with cache)
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+
+      # 缓存 apt 包目录
+      - name: Cache APT packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            /var/cache/apt/archives
+          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/build-core.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake ninja-build python3 \
+            libxml2-dev libxslt1-dev zlib1g-dev \
+            libjpeg-dev libpng-dev libtiff-dev \
+            libfreetype6-dev libglib2.0-dev \
+            libcurl4-openssl-dev uuid-dev \
+            libhunspell-dev libharfbuzz-dev
+
+      - name: Build x2t
+        run: |
+          ./make.py
+          ls -lh out/linux_64/*/*/x2t || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: x2t-binary
+          path: out/linux_64/release/x2t
